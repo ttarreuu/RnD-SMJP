@@ -1,66 +1,62 @@
-import ReactNativeForegroundService from '@supersami/rn-foreground-service';
+// app.tsx
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, PermissionsAndroid, Modal, Button } from 'react-native';
+import { StyleSheet, View, Text, Modal, Button } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
 
 const App = () => {
   const [location, setLocation] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-
-  const requestLocationPermission = async () => {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: 'Geolocation Permission',
-          message: 'Can we access your location?',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-      if (granted === 'granted') {
-        // console.log('Geolocation Active');
-        return true;
-      } else {
-        // console.log('Geolocation Non Active');
-        return false;
-      }
-    } catch (err) {
-      return false;
-    }
-  };
-
-
-  const getLocation = async () => {
-    const result = await requestLocationPermission();
-    if(result){
-      Geolocation.getCurrentPosition(
-        position => {
-          if(position.mocked == false) {
-            console.log(position);
-            setLocation(position);
-          }else{
-            console.log("Fake GPS Detected");
-            setModalVisible(true);
-          }
-        },
-        error => {
-          console.log(error.code, error.message);
-          setLocation(null);
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
-      );
-    }
+  const getLocation = () => {
+    Geolocation.getCurrentPosition(
+      position => {
+        if (position.mocked === false) {
+          console.log(position);
+          setLocation(position);
+        } else {
+          console.log("Fake GPS Detected");
+          setModalVisible(true);
+        }
+      },
+      error => {
+        console.log(error.code, error.message);
+        setLocation(null);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+    );
   };
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const watchId = Geolocation.watchPosition(
+      position => {
+        if (position.mocked === false) {
+          console.log(position);
+          setLocation(position);
+        } else {
+          console.log("Fake GPS Detected");
+          setModalVisible(true);
+        }
+      },
+      error => {
+        console.log(error.code, error.message);
+        setLocation(null);
+      },
+      { enableHighAccuracy: true, distanceFilter: 10 },
+    );
+
+    return () => {
+      Geolocation.clearWatch(watchId);
+    };
+  }, []);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
       getLocation();
     }, 10000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
 
   return (
