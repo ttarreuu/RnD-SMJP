@@ -1,8 +1,15 @@
-import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal } from 'react-native';
+import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal, ScrollView } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import Geolocation from 'react-native-geolocation-service';
 import ReactNativeForegroundService from "@supersami/rn-foreground-service";
 import NetInfo from '@react-native-community/netinfo';
+import {
+  initDatabase,
+  insertLocation,
+  getLocations,
+  deleteLocation,
+  clearLocations,
+} from './database';
 
 const App = () => {
   const [location, setLocation] = useState(null);
@@ -99,15 +106,31 @@ const App = () => {
       });
   };
 
+  const sendDataToLocalDB = async (data) => {
+    try {
+      await insertLocation(data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const syncDataWithApi = async () => {
+    const localDB = await getLocations();
+    for (const location of localDB) {
+      await sendDataToApi(location);
+      await deleteLocation(location.id);
+    }
+  };
+
   const handleData = async ({dateTime, latitude, longitude}) => {
     const isConnected = await checkInternetConnection();
 
     if(isConnected) {
-      // await syncDataWithApi();
+      await syncDataWithApi();
       await sendDataToApi({dateTime, latitude, longitude});
       getData();
     }else {
-      //await sendDataToLocalDB({dateTime, latitude, longitude});
+      await sendDataToLocalDB({dateTime, latitude, longitude});
     }
   };
 
@@ -115,7 +138,6 @@ const App = () => {
     const currentDate = new Date();
     const dateTime = currentDate.toLocaleString();
     console.log(dateTime);
-
 
     Geolocation.getCurrentPosition(
       position => {
@@ -150,8 +172,19 @@ const App = () => {
 
   return (
     <View style={styles.container}>
-      <Text>Latitude: {location ? location.coords.latitude : null}</Text>
-      <Text>Longitude: {location ? location.coords.longitude : null}</Text>
+      <ScrollView>
+        {list.map((item, index) => (
+          <View key={index} style={styles.itemContainer}>
+            <View style={styles.itemTextContainer}>
+              <Text style={styles.itemDate}>DATE   : {item.dateTime}</Text>
+              <Text>LAT       : {item.latitude}</Text>
+              <Text>LONG    : {item.longitude}</Text>
+            </View>
+            <View style={styles.buttonContainer}>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
       <Modal
         animationType="slide"
         transparent={true}
@@ -203,6 +236,25 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: 'center',
   },
+  itemContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  itemTextContainer: {
+    flex: 1,
+  },
+  itemDate: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  }
 });
 
 export default App;
