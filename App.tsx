@@ -1,13 +1,83 @@
-// app.tsx
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, Modal, Button } from 'react-native';
+import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import Geolocation from 'react-native-geolocation-service';
+import ReactNativeForegroundService from "@supersami/rn-foreground-service";
 
 const App = () => {
   const [location, setLocation] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const getLocation = () => {
+  useEffect(() => {
+    requestLocationPermission()
+    
+
+    const interval = setInterval(() => {
+      startForegroundService();
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
+  const requestLocationPermission = async () => {
+    Geolocation.requestAuthorization('always');
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Location Permission',
+          message: 'App needs access to your location.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('Location permission granted');
+      } else {
+        console.log('Location permission denied');
+      }
+
+      await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+        {
+          title: 'Background Location Permission',
+          message: 'We need access to your location so you can get live quality updates.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      ); 
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  const startForegroundService = () => {
+    ReactNativeForegroundService.start({
+      id: 1244,
+      title: 'Location Tracking',
+      message: 'Location Tracking',
+      icon: 'ic_launcher',
+      button: false,
+      button2: false,
+      color: '#000000',
+    });
+
+    ReactNativeForegroundService.add_task(() => getCurrentLocation(), {
+      delay: 1000,
+      onLoop: true,
+      taskId: "taskid",
+      onError: (e) => console.log(`Error logging:`, e),
+    });
+  };
+
+  const getCurrentLocation = () => {
+    const currentDate = new Date();
+    const dateTime = currentDate.toLocaleString();
+    console.log(dateTime);
     Geolocation.getCurrentPosition(
       position => {
         if (position.mocked === false) {
@@ -20,44 +90,14 @@ const App = () => {
       },
       error => {
         console.log(error.code, error.message);
-        setLocation(null);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 10000
+      }
     );
   };
-
-  useEffect(() => {
-    const watchId = Geolocation.watchPosition(
-      position => {
-        if (position.mocked === false) {
-          console.log(position);
-          setLocation(position);
-        } else {
-          console.log("Fake GPS Detected");
-          setModalVisible(true);
-        }
-      },
-      error => {
-        console.log(error.code, error.message);
-        setLocation(null);
-      },
-      { enableHighAccuracy: true, distanceFilter: 10 },
-    );
-
-    return () => {
-      Geolocation.clearWatch(watchId);
-    };
-  }, []);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      getLocation();
-    }, 10000);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, []);
 
   return (
     <View style={styles.container}>

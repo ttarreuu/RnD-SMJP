@@ -8,9 +8,4 @@ import App from './App';
 import {name as appName} from './app.json';
 
 ReactNativeForegroundService.register();
-ReactNativeForegroundService.start({
-    id: 144,
-    title: "Foreground Service",
-    message: "You are online!",
-});
 AppRegistry.registerComponent(appName, () => App);
