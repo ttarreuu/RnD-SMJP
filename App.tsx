@@ -17,8 +17,15 @@ const App = () => {
   const [list, setList] = useState([]);
 
   useEffect(() => {
+    initDatabase();
     requestLocationPermission();
     startForegroundService();
+    
+    const intervalId = setInterval(() => {
+      getData();
+    }, 10000);
+
+    return () => clearInterval(intervalId); // Cleanup interval on component unmount
   }, []);
 
   const requestLocationPermission = async () => {
@@ -86,7 +93,11 @@ const App = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          dateTime: data.dateTime,
+          latitude: data.latitude,
+          longitude: data.longitude
+        }),
       });
     } catch (error) {
       console.log(error);
@@ -94,7 +105,7 @@ const App = () => {
   };
 
   const getData = () => {
-    fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/users', {
+    fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users', {
       method: 'GET',
     })
       .then((res) => res.json())
@@ -117,7 +128,11 @@ const App = () => {
   const syncDataWithApi = async () => {
     const localDB = await getLocations();
     for (const location of localDB) {
-      await sendDataToApi(location);
+      await sendDataToApi({
+        dateTime: location.dateTime,
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
       await deleteLocation(location.id);
     }
   };
@@ -208,8 +223,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center',  // Center items vertically
   },
   centeredView: {
     flex: 1,
