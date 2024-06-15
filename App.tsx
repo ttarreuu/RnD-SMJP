@@ -86,40 +86,48 @@ const App = () => {
     return await NetInfo.fetch().then((state) => state.isConnected);
   };
 
-  const sendDataToApi = async (data) => {
+  const sendDataToApi = async (newData) => {
     try {
-      await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/users', {
-        method: 'POST',
+      const response = await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users/1', {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const existingData = await response.json();
+      if (!Array.isArray(existingData.logTracking)) {
+        existingData.logTracking = [];
+      }
+      existingData.logTracking.unshift(newData);
+
+      await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users/1', {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          dateTime: data.dateTime,
-          latitude: data.latitude,
-          longitude: data.longitude
-        }),
+        body: JSON.stringify(existingData),
       });
     } catch (error) {
-      console.log(error);
+      console.error('Error sending data to API:', error);
     }
   };
 
-  const getData = () => {
-    fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/users', {
-      method: 'GET',
-    })
-      .then((res) => res.json())
-      .then((res) => {
-        setList(res);
-      })
-      .catch((err) => {
-        console.log(err);
+  const getData = async () => {
+    try {
+      const response = await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users/1', {
+        method: 'GET',
       });
+      const res = await response.json();
+      setList(prevList => [...prevList, ...res]);
+    } catch (err) {
+      console.log(err);
+    }
   };
 
-  const sendDataToLocalDB = async (data) => {
+  const sendDataToLocalDB = async (newData) => {
     try {
-      await insertLocation(data);
+      await insertLocation(newData);
     } catch (error) {
       console.log(error);
     }
@@ -128,24 +136,20 @@ const App = () => {
   const syncDataWithApi = async () => {
     const localDB = await getLocations();
     for (const location of localDB) {
-      await sendDataToApi({
-        dateTime: location.dateTime,
-        latitude: location.latitude,
-        longitude: location.longitude,
-      });
+      await sendDataToApi(location);
       await deleteLocation(location.id);
     }
   };
 
-  const handleData = async ({dateTime, latitude, longitude}) => {
+  const handleData = async (newData) => {
     const isConnected = await checkInternetConnection();
 
     if(isConnected) {
       await syncDataWithApi();
-      await sendDataToApi({dateTime, latitude, longitude});
+      await sendDataToApi(newData);
       getData();
     }else {
-      await sendDataToLocalDB({dateTime, latitude, longitude});
+      await sendDataToLocalDB(newData);
     }
   };
 
@@ -159,19 +163,26 @@ const App = () => {
         if (position.mocked === false) {
           const latitude = position.coords.latitude;
           const longitude = position.coords.longitude;
-          const currDateTime = dateTime;
+          const newData = {
+            dateTime,
+            latitude,
+            longitude,
+          };
 
           console.log(position);
-          setLocation(position);
-          handleData({dateTime, latitude, longitude});
+          handleData(newData);
         } else {
           const latitude = 0;
           const longitude = 0;
-          const currDateTime = dateTime;
+          const newData = {
+            dateTime,
+            latitude,
+            longitude,
+          };
 
           console.log("Fake GPS Detected");
           setModalVisible(true);
-          handleData({dateTime, latitude, longitude});
+          handleData(newData);
         }
       },
       error => {

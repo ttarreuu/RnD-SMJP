@@ -21,9 +21,7 @@ export const initDatabase = async () => {
     await db.executeSql(
       `CREATE TABLE IF NOT EXISTS Locations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        dateTime TEXT,
-        latitude REAL,
-        longitude REAL
+        logTracking TEXT
       );`
     );
   } catch (error) {
@@ -31,14 +29,15 @@ export const initDatabase = async () => {
   }
 };
 
-export const insertLocation = async (data) => {
+export const insertData = async (data) => {
   try {
+    const logTracking = JSON.stringify(data.logTracking);
     await db.executeSql(
-      `INSERT INTO Locations (dateTime, latitude, longitude) VALUES (?, ?, ?);`,
-      [data.dateTime, data.latitude, data.longitude]
+      `INSERT INTO Data (logTracking) VALUES (?);`,
+      [logTracking]
     );
   } catch (error) {
-    console.log('Error inserting location', error);
+    console.log('Error inserting data', error);
   }
 };
 
