@@ -1,18 +1,16 @@
-import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal, ScrollView, FlatList } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import Geolocation from 'react-native-geolocation-service';
 import ReactNativeForegroundService from "@supersami/rn-foreground-service";
 import NetInfo from '@react-native-community/netinfo';
 import {
   initDatabase,
-  insertLocation,
-  getLocations,
-  deleteLocation,
-  clearLocations,
+  insertLocalDB,
+  getLocalDB,
+  deleteLocalDB,
 } from './database';
 
 const App = () => {
-  const [location, setLocation] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [list, setList] = useState([]);
 
@@ -92,13 +90,31 @@ const App = () => {
         method: 'GET',
       });
 
+      let existingData;
+
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        existingData = {
+          id: 1,
+          logTracking: [newData],
+        };
+
+        await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(existingData),
+        });
+
+        return;
       }
-      const existingData = await response.json();
+
+      existingData = await response.json();
+
       if (!Array.isArray(existingData.logTracking)) {
         existingData.logTracking = [];
       }
+
       existingData.logTracking.unshift(newData);
 
       await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users/1', {
@@ -118,8 +134,9 @@ const App = () => {
       const response = await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users/1', {
         method: 'GET',
       });
-      const res = await response.json();
-      setList(prevList => [...prevList, ...res]);
+      const json = await response.json();
+      const logTrackingData = json.logTracking;
+      setList(logTrackingData);
     } catch (err) {
       console.log(err);
     }
@@ -127,17 +144,17 @@ const App = () => {
 
   const sendDataToLocalDB = async (newData) => {
     try {
-      await insertLocation(newData);
+      await insertLocalDB(newData);
     } catch (error) {
       console.log(error);
     }
   };
 
   const syncDataWithApi = async () => {
-    const localDB = await getLocations();
+    const localDB = await getLocalDB();
     for (const location of localDB) {
-      await sendDataToApi(location);
-      await deleteLocation(location.id);
+      await sendDataToApi({"dateTime": location.dateTime, "latitude": location.latitude, "longitude": location.longitude});
+      await deleteLocalDB(location.id);
     }
   };
 
@@ -196,21 +213,23 @@ const App = () => {
     );
   };
 
+  const renderItem = ({ item }) => (
+    <View style={styles.itemContainer}>
+      <View style={styles.itemTextContainer}>
+        <Text style={styles.itemDate}>DATE   : {item.dateTime}</Text>
+        <Text>LAT       : {item.latitude}</Text>
+        <Text>LONG    : {item.longitude}</Text>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <ScrollView>
-        {list.map((item, index) => (
-          <View key={index} style={styles.itemContainer}>
-            <View style={styles.itemTextContainer}>
-              <Text style={styles.itemDate}>DATE   : {item.dateTime}</Text>
-              <Text>LAT       : {item.latitude}</Text>
-              <Text>LONG    : {item.longitude}</Text>
-            </View>
-            <View style={styles.buttonContainer}>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
+      <FlatList
+        data={list}
+        renderItem={renderItem}
+        keyExtractor={(item, index) => index.toString()}
+      />
       <Modal
         animationType="slide"
         transparent={true}

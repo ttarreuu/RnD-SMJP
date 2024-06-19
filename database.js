@@ -19,9 +19,11 @@ export const initDatabase = async () => {
       database_size
     );
     await db.executeSql(
-      `CREATE TABLE IF NOT EXISTS Locations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        logTracking TEXT
+      `CREATE TABLE IF NOT EXISTS LogTracking (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        dateTime TEXT, 
+        latitude REAL, 
+        longitude REAL
       );`
     );
   } catch (error) {
@@ -29,44 +31,36 @@ export const initDatabase = async () => {
   }
 };
 
-export const insertData = async (data) => {
+export const insertLocalDB = async (newData) => {
+  const { dateTime, latitude, longitude } = newData;
   try {
-    const logTracking = JSON.stringify(data.logTracking);
     await db.executeSql(
-      `INSERT INTO Data (logTracking) VALUES (?);`,
-      [logTracking]
+      `INSERT INTO LogTracking (dateTime, latitude, longitude) VALUES (?, ?, ?);`,
+      [dateTime, latitude, longitude]
     );
   } catch (error) {
-    console.log('Error inserting data', error);
+    console.log('Error inserting location', error);
   }
 };
 
-export const getLocations = async () => {
+export const getLocalDB = async () => {
   try {
-    let results = await db.executeSql(`SELECT * FROM Locations;`);
-    let locations = [];
+    let results = await db.executeSql(`SELECT * FROM LogTracking;`);
+    let data = [];
     results[0].rows.raw().forEach((row) => {
-      locations.push(row);
+      data.push(row);
     });
-    return locations;
+    return data;
   } catch (error) {
-    console.log('Error fetching locations', error);
+    console.log('Error fetching data', error);
     return [];
   }
 };
 
-export const deleteLocation = async (id) => {
+export const deleteLocalDB = async (id) => {
   try {
-    await db.executeSql(`DELETE FROM Locations WHERE id = ?;`, [id]);
+    await db.executeSql(`DELETE FROM LogTracking WHERE id = ?;`, [id]);
   } catch (error) {
-    console.log('Error deleting location', error);
-  }
-};
-
-export const clearLocations = async () => {
-  try {
-    await db.executeSql(`DELETE FROM Locations;`);
-  } catch (error) {
-    console.log('Error clearing locations', error);
+    console.log('Error deleting data', error);
   }
 };
