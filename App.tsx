@@ -23,7 +23,7 @@ const App = () => {
       getData();
     }, 10000);
 
-    return () => clearInterval(intervalId); // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
   }, []);
 
   const requestLocationPermission = async () => {
@@ -86,7 +86,7 @@ const App = () => {
 
   const sendDataToApi = async (newData) => {
     try {
-      const response = await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users/1', {
+      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
         method: 'GET',
       });
 
@@ -98,7 +98,7 @@ const App = () => {
           logTracking: [newData],
         };
 
-        await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users', {
+        await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -117,7 +117,7 @@ const App = () => {
 
       existingData.logTracking.unshift(newData);
 
-      await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users/1', {
+      await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ const App = () => {
 
   const getData = async () => {
     try {
-      const response = await fetch('https://6639cbd81ae792804beccbdc.mockapi.io/location/v1/users/1', {
+      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
         method: 'GET',
       });
       const json = await response.json();
