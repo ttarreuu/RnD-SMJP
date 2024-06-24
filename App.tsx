@@ -18,15 +18,6 @@ const App = () => {
     initDatabase();
     requestLocationPermission();
     startForegroundService();
-
-    const intervalId = setInterval(() => {
-      syncDataWithAPI();
-      getApi();
-    }, 40000); 
-
-    return () => {
-      clearInterval(intervalId);
-    };
   }, []);
 
   const requestLocationPermission = async () => {
@@ -78,7 +69,14 @@ const App = () => {
     ReactNativeForegroundService.add_task(() => getCurrentLocation(), {
       delay: 10000,
       onLoop: true,
-      taskId: "taskid",
+      taskId: "getLocation",
+      onError: (e) => console.log(`Error logging:`, e),
+    });
+
+    ReactNativeForegroundService.add_task(() => syncDataWithAPI(), {
+      delay: 40000,
+      onLoop: true,
+      taskId: "syncWithAPI",
       onError: (e) => console.log(`Error logging:`, e),
     });
   };
@@ -150,6 +148,7 @@ const App = () => {
         });
         await deleteLocalDB(LogTracking.id);
       }
+      getApi();
     } 
   };
 
