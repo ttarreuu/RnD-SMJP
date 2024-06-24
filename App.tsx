@@ -18,12 +18,15 @@ const App = () => {
     initDatabase();
     requestLocationPermission();
     startForegroundService();
-    
-    const intervalId = setInterval(() => {
-      getData();
-    }, 10000);
 
-    return () => clearInterval(intervalId);
+    const intervalId = setInterval(() => {
+      syncDataWithAPI();
+      getApi();
+    }, 40000); 
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
 
   const requestLocationPermission = async () => {
@@ -80,96 +83,6 @@ const App = () => {
     });
   };
 
-  const checkInternetConnection = async () => {
-    return await NetInfo.fetch().then((state) => state.isConnected);
-  };
-
-  const sendDataToApi = async (newData) => {
-    try {
-      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
-        method: 'GET',
-      });
-
-      let existingData;
-
-      if (!response.ok) {
-        existingData = {
-          id: 1,
-          logTracking: [newData],
-        };
-
-        await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(existingData),
-        });
-
-        return;
-      }
-
-      existingData = await response.json();
-
-      if (!Array.isArray(existingData.logTracking)) {
-        existingData.logTracking = [];
-      }
-
-      existingData.logTracking.unshift(newData);
-
-      await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(existingData),
-      });
-    } catch (error) {
-      console.error('Error sending data to API:', error);
-    }
-  };
-
-  const getData = async () => {
-    try {
-      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
-        method: 'GET',
-      });
-      const json = await response.json();
-      const logTrackingData = json.logTracking;
-      setList(logTrackingData);
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const sendDataToLocalDB = async (newData) => {
-    try {
-      await insertLocalDB(newData);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const syncDataWithApi = async () => {
-    const localDB = await getLocalDB();
-    for (const location of localDB) {
-      await sendDataToApi({"dateTime": location.dateTime, "latitude": location.latitude, "longitude": location.longitude});
-      await deleteLocalDB(location.id);
-    }
-  };
-
-  const handleData = async (newData) => {
-    const isConnected = await checkInternetConnection();
-
-    if(isConnected) {
-      await syncDataWithApi();
-      await sendDataToApi(newData);
-      getData();
-    }else {
-      await sendDataToLocalDB(newData);
-    }
-  };
-
   const getCurrentLocation = () => {
     const currentDate = new Date();
     const dateTime = currentDate.toLocaleString();
@@ -186,8 +99,8 @@ const App = () => {
             longitude,
           };
 
-          console.log(position);
-          handleData(newData);
+          console.log(newData);
+          sendDataToLocalDB(newData);
         } else {
           const latitude = 0;
           const longitude = 0;
@@ -198,8 +111,8 @@ const App = () => {
           };
 
           console.log("Fake GPS Detected");
+          sendDataToLocalDB(newData);
           setModalVisible(true);
-          handleData(newData);
         }
       },
       error => {
@@ -212,6 +125,94 @@ const App = () => {
       }
     );
   };
+
+  const sendDataToLocalDB = async (newData) => {
+    try {
+      await insertLocalDB(newData);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const checkInternetConnection = async () => {
+    return await NetInfo.fetch().then((state) => state.isConnected);
+  };
+
+  const syncDataWithAPI = async () => {
+    const isConnected = await checkInternetConnection();
+    if(isConnected) {
+      const localDB = await getLocalDB();
+      for (const LogTracking of localDB) {
+        await sendDataToApi({
+          "dateTime": LogTracking.dateTime, 
+          "latitude": LogTracking.latitude, 
+          "longitude": LogTracking.longitude
+        });
+        await deleteLocalDB(LogTracking.id);
+      }
+    } 
+  };
+
+  
+  const sendDataToApi = async (newData) => {
+    try {
+      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
+        method: 'GET',
+      });
+      
+      let existingData;
+      
+      if (!response.ok) {
+        existingData = {
+          id: 1,
+          logTracking: [newData],
+        };
+        
+        await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(existingData),
+        });
+        
+        return;
+      }
+      
+      existingData = await response.json();
+      
+      if (!Array.isArray(existingData.logTracking)) {
+        existingData.logTracking = [];
+      }
+      
+      existingData.logTracking.unshift(newData);
+      
+      await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(existingData),
+      });
+    } catch (error) {
+      console.error('Error sending data to API:', error);
+    }
+  };
+  
+  
+  const getApi = async () => {
+    try {
+      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
+        method: 'GET',
+      });
+      const json = await response.json();
+      const logTrackingData = json.logTracking;
+      setList(logTrackingData);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
 
   const renderItem = ({ item }) => (
     <View style={styles.itemContainer}>
