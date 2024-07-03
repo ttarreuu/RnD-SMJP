@@ -15,6 +15,7 @@ const App = () => {
   const [list, setList] = useState([]);
 
   useEffect(() => {
+    getApi();
     initDatabase();
     requestLocationPermission();
     startForegroundService();
@@ -67,14 +68,14 @@ const App = () => {
     });
 
     ReactNativeForegroundService.add_task(() => getCurrentLocation(), {
-      delay: 10000,
+      delay: 60000, // tiap 1 mnt
       onLoop: true,
       taskId: "getLocation",
       onError: (e) => console.log(`Error logging:`, e),
     });
 
     ReactNativeForegroundService.add_task(() => syncDataWithAPI(), {
-      delay: 40000,
+      delay: 300000, // tiap 5 mnt
       onLoop: true,
       taskId: "syncWithAPI",
       onError: (e) => console.log(`Error logging:`, e),
