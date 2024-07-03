@@ -9,6 +9,7 @@ import {
   getLocalDB,
   deleteLocalDB,
 } from './database';
+import uuid from 'react-native-uuid';
 
 const App = () => {
   const [modalVisible, setModalVisible] = useState(false);
