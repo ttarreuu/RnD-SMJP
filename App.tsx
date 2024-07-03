@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal, ScrollView, FlatList } from 'react-native';
+import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal, FlatList } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import Geolocation from 'react-native-geolocation-service';
 import ReactNativeForegroundService from "@supersami/rn-foreground-service";
@@ -13,12 +13,22 @@ import {
 const App = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [list, setList] = useState([]);
+  const [isConnected, setIsConnected] = useState(true);
 
   useEffect(() => {
     getApi();
     initDatabase();
     requestLocationPermission();
     startForegroundService();
+
+    // Subscribe to internet connection updates
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const requestLocationPermission = async () => {
@@ -226,11 +236,17 @@ const App = () => {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={list}
-        renderItem={renderItem}
-        keyExtractor={(item, index) => index.toString()}
-      />
+      {!isConnected ? (
+        <View style={styles.noInternetContainer}>
+          <Text style={styles.noInternetText}>Opss! No internet</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={list}
+          renderItem={renderItem}
+          keyExtractor={(item, index) => index.toString()}
+        />
+      )}
       <Modal
         animationType="slide"
         transparent={true}
@@ -255,6 +271,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     justifyContent: 'center',  // Center items vertically
+  },
+  noInternetContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noInternetText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'red',
   },
   centeredView: {
     flex: 1,
@@ -287,19 +313,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: '#ccc',
   },
   itemTextContainer: {
     flex: 1,
   },
   itemDate: {
-    fontSize: 15,
     fontWeight: 'bold',
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  }
 });
 
 export default App;
