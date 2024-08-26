@@ -9,23 +9,22 @@ import {
   getLocalDB,
   deleteLocalDB,
 } from './database';
-import uuid from 'react-native-uuid';
 
 const App = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [list, setList] = useState([]);
   const [isConnected, setIsConnected] = useState(true);
-  const [isTracking, setIsTracking] = useState(false);
 
   useEffect(() => {
     getApi();
     initDatabase();
     requestLocationPermission();
+    startForegroundService();
 
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsConnected(state.isConnected);
     });
-
+ 
     return () => {
       unsubscribe();
     };
@@ -71,31 +70,25 @@ const App = () => {
       id: 1244,
       title: 'Location Tracking',
       message: 'Location Tracking',
-      icon: 'ic_launcher',
+      icon: 'ic_launcher',  
       button: false,
       button2: false,
       color: '#000000',
     });
 
     ReactNativeForegroundService.add_task(() => getCurrentLocation(), {
-      delay: 60000, // tiap 1 mnt
+      delay: 10000, // tiap 1 mnt
       onLoop: true,
       taskId: "getLocation",
       onError: (e) => console.log(`Error logging:`, e),
     });
 
     ReactNativeForegroundService.add_task(() => syncDataWithAPI(), {
-      delay: 300000, // tiap 5 mnt
+      delay: 60000, // tiap 5 mnt
       onLoop: true,
       taskId: "syncWithAPI",
       onError: (e) => console.log(`Error logging:`, e),
     });
-  };
-
-  const stopForegroundService = () => {
-    ReactNativeForegroundService.stop();
-    ReactNativeForegroundService.remove_task("getLocation");
-    ReactNativeForegroundService.remove_task("syncWithAPI");
   };
 
   const getCurrentLocation = () => {
@@ -170,7 +163,7 @@ const App = () => {
   };
 
   
-  const sendDataToApi = async (newData) => {
+  const sendDataToApi = async (newData:any) => {
     try {
       const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
         method: 'GET',
@@ -240,18 +233,8 @@ const App = () => {
     </View>
   );
 
-  const toggleTracking = () => {
-    if (isTracking) {
-      stopForegroundService();
-    } else {
-      startForegroundService();
-    }
-    setIsTracking(!isTracking);
-  };
-
   return (
     <View style={styles.container}>
-      <Button title={isTracking ? "Stop Tracking" : "Start Tracking"} onPress={toggleTracking} />
       {!isConnected ? (
         <View style={styles.noInternetContainer}>
           <Text style={styles.noInternetText}>Opss! No internet</Text>
@@ -324,13 +307,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   itemContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
   },
   itemTextContainer: {
-    flexDirection: 'column',
+    flex: 1,
   },
   itemDate: {
     fontWeight: 'bold',
