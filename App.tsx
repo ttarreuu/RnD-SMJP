@@ -14,12 +14,12 @@ const App = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [list, setList] = useState([]);
   const [isConnected, setIsConnected] = useState(true);
+  const [isTracking, setIsTracking] = useState(false);
 
   useEffect(() => {
     getApi();
     initDatabase();
     requestLocationPermission();
-    startForegroundService();
 
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsConnected(state.isConnected);
@@ -77,18 +77,24 @@ const App = () => {
     });
 
     ReactNativeForegroundService.add_task(() => getCurrentLocation(), {
-      delay: 10000, // tiap 1 mnt
+      delay: 10000, // tiap 10 detik
       onLoop: true,
       taskId: "getLocation",
       onError: (e) => console.log(`Error logging:`, e),
     });
 
     ReactNativeForegroundService.add_task(() => syncDataWithAPI(), {
-      delay: 60000, // tiap 5 mnt
+      delay: 60000, // tiap 1 mnt
       onLoop: true,
       taskId: "syncWithAPI",
       onError: (e) => console.log(`Error logging:`, e),
     });
+  };
+
+  const stopForegroundService = () => {
+    ReactNativeForegroundService.stop();
+    ReactNativeForegroundService.remove_task("getLocation");
+    ReactNativeForegroundService.remove_task("syncWithAPI");
   };
 
   const getCurrentLocation = () => {
@@ -233,8 +239,18 @@ const App = () => {
     </View>
   );
 
+  const toggleTracking = () => {
+    if (isTracking) {
+      stopForegroundService();
+    } else {
+      startForegroundService();
+    }
+    setIsTracking(!isTracking);
+  };
+
   return (
     <View style={styles.container}>
+    <Button title={isTracking ? "Stop Tracking" : "Start Tracking"} onPress={toggleTracking} />
       {!isConnected ? (
         <View style={styles.noInternetContainer}>
           <Text style={styles.noInternetText}>Opss! No internet</Text>
@@ -307,15 +323,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
   },
   itemTextContainer: {
-    flex: 1,
+    flexDirection: 'column',
   },
   itemDate: {
     fontWeight: 'bold',
