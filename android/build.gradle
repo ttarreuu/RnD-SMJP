@@ -37,7 +37,7 @@ allprojects {
         }
         google()
         maven {
-            url 'https://wwww.jitpack.io'
+            url 'https://www.jitpack.io'
         }
         maven {
             url 'https://api.mapbox.com/downloads/v2/releases/maven'
