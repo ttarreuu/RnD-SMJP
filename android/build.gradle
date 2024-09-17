@@ -16,7 +16,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:7.2.1")
+        classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("de.undercouch:gradle-download-task:5.0.1")
     }
@@ -46,7 +46,7 @@ allprojects {
             }
             credentials {
                 username = 'mapbox'
-                password = 'sk.eyJ1IjoiYnJhZGkyNSIsImEiOiJjbTBsczJza3UwMGN3MmlzZjZ6Nnd0MWhzIn0.etXRoU7EUjPem38FRtypjQ'
+                password = 'sk.eyJ1IjoiYnJhZGkyNSIsImEiOiJjbTB1Z2NvZm4wMjNzMmlzMm5kNDJtc2x2In0.EOqRRNIs4nhl-mMPRyZOaA'
             }
         }
     }

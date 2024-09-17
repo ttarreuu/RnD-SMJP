@@ -9,15 +9,21 @@ import {
   getLocalDB,
   deleteLocalDB,
 } from './database';
+import Mapbox, { Image } from '@rnmapbox/maps';
+
+Mapbox.setAccessToken('pk.eyJ1IjoiYnJhZGkyNSIsImEiOiJjbHloZXlncTUwMmptMmxvam16YzZpYWJ2In0.iAua4xmCQM94oKGXoW2LgA');
 
 const App = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [list, setList] = useState([]);
+  const [checkpoints, setCheckpoints] = useState([]); // For checkpoint data
   const [isConnected, setIsConnected] = useState(true);
   const [isTracking, setIsTracking] = useState(false);
+  const [userLocation, setUserLocation] = useState([106.8650, -6.1751]); 
 
   useEffect(() => {
     getApi();
+    getCheckpointData(); 
     initDatabase();
     requestLocationPermission();
 
@@ -29,6 +35,16 @@ const App = () => {
       unsubscribe();
     };
   }, []);
+
+  const getCheckpointData = async () => {
+    try {
+      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/cp');
+      const data = await response.json();
+      setCheckpoints(data); 
+    } catch (error) {
+      console.error('Error fetching checkpoint data:', error);
+    }
+  };
 
   const requestLocationPermission = async () => {
     Geolocation.requestAuthorization('always');
@@ -84,7 +100,7 @@ const App = () => {
     });
 
     ReactNativeForegroundService.add_task(() => syncDataWithAPI(), {
-      delay: 60000, // tiap 1 mnt
+      delay: 60000, // tiap 1 menit
       onLoop: true,
       taskId: "syncWithAPI",
       onError: (e) => console.log(`Error logging:`, e),
@@ -115,6 +131,7 @@ const App = () => {
 
           console.log(newData);
           sendDataToLocalDB(newData);
+          setUserLocation([longitude, latitude]); 
         } else {
           const latitude = 0;
           const longitude = 0;
@@ -140,7 +157,7 @@ const App = () => {
     );
   };
 
-  const sendDataToLocalDB = async (newData) => {
+  const sendDataToLocalDB = async (newData: { dateTime: string; latitude: number; longitude: number; }) => {
     try {
       await insertLocalDB(newData);
     } catch (error) {
@@ -168,8 +185,7 @@ const App = () => {
     } 
   };
 
-  
-  const sendDataToApi = async (newData:any) => {
+  const sendDataToApi = async (newData: { dateTime: any; latitude: any; longitude: any; }) => {
     try {
       const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
         method: 'GET',
@@ -213,8 +229,7 @@ const App = () => {
       console.error('Error sending data to API:', error);
     }
   };
-  
-  
+
   const getApi = async () => {
     try {
       const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
@@ -228,17 +243,6 @@ const App = () => {
     }
   };
 
-
-  const renderItem = ({ item }) => (
-    <View style={styles.itemContainer}>
-      <View style={styles.itemTextContainer}>
-        <Text style={styles.itemDate}>DATE   : {item.dateTime}</Text>
-        <Text>LAT       : {item.latitude}</Text>
-        <Text>LONG    : {item.longitude}</Text>
-      </View>
-    </View>
-  );
-
   const toggleTracking = () => {
     if (isTracking) {
       stopForegroundService();
@@ -248,92 +252,85 @@ const App = () => {
     setIsTracking(!isTracking);
   };
 
+  const createGeoJSON = (coordinates: any) => ({
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: coordinates,
+        },
+      },
+    ],
+  });
+
+  const getCoordinates = (list: any[]) => {
+    return list.map(item => [item.longitude, item.latitude]);
+  };
+
   return (
     <View style={styles.container}>
-    <Button title={isTracking ? "Stop Tracking" : "Start Tracking"} onPress={toggleTracking} />
-      {!isConnected ? (
-        <View style={styles.noInternetContainer}>
-          <Text style={styles.noInternetText}>Opss! No internet</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={list}
-          renderItem={renderItem}
-          keyExtractor={(item, index) => index.toString()}
-        />
-      )}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => {
-          setModalVisible(false);
-        }}
+      <Button title={isTracking ? "Stop Tracking" : "Start Tracking"} onPress={toggleTracking} />
+      <Mapbox.MapView
+        style={styles.map}
+        styleURL='mapbox://styles/mapbox/streets-v12'
       >
-        <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalText}>Fake GPS Location Detected!</Text>
-            <Button title="Close" onPress={() => setModalVisible(false)} />
-          </View>
-        </View>
-      </Modal>
+        <Mapbox.Camera
+          zoomLevel={20}
+          centerCoordinate={userLocation}
+          pitch={60}
+          animationMode={'flyTo'}
+          animationDuration={6000}
+        />
+        <Mapbox.PointAnnotation
+          coordinate={userLocation}
+          id="userLocation"
+          title="You are here"
+        >
+          <View/>
+        </Mapbox.PointAnnotation>
+        {list.length > 0 && (
+          <Mapbox.ShapeSource id="polyline" shape={createGeoJSON(getCoordinates(list))}>
+            <Mapbox.LineLayer id="line" style={{ lineColor: '#FF0000', lineWidth: 3 }} />
+          </Mapbox.ShapeSource>
+        )}
+        {checkpoints.map((checkpoint, index) => (
+          <Mapbox.PointAnnotation
+            key={`checkpoint-${index}`}
+            coordinate={[checkpoint.longitude, checkpoint.latitude]}
+            id={`checkpoint-${index}`}
+            title={`Checkpoint ${index + 1}`}
+            //change this checkpoint marker style into a green color
+          >
+            <View style={styles.checkpointMarker}/>
+          </Mapbox.PointAnnotation>
+        ))}
+      </Mapbox.MapView>
     </View>
   );
 };
 
+export default App;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'center',  // Center items vertically
   },
-  noInternetContainer: {
+  map: {
     flex: 1,
+  },
+  checkpointIcon: {
+    width: 30,
+    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  noInternetText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'red',
-  },
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 22,
-  },
-  modalView: {
-    margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalText: {
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  itemContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-  },
-  itemTextContainer: {
-    flexDirection: 'column',
-  },
-  itemDate: {
-    fontWeight: 'bold',
-  },
+  checkpointMarker: {
+    width: 20,
+    height: 20,
+    backgroundColor: 'green', 
+    borderRadius: 10, 
+    borderWidth: 2,
+  }
 });
-
-export default App;
