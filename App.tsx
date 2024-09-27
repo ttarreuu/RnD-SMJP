@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal, FlatList } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import Geolocation from 'react-native-geolocation-service';
+import Geolocation, { PositionError } from 'react-native-geolocation-service';
 import ReactNativeForegroundService from "@supersami/rn-foreground-service";
 import NetInfo from '@react-native-community/netinfo';
 import {
@@ -9,21 +9,20 @@ import {
   getLocalDB,
   deleteLocalDB,
 } from './database';
-import Mapbox, { Image } from '@rnmapbox/maps';
+import Mapbox from '@rnmapbox/maps';
+import SatelliteModule from './SatelliteModule'; // Import the module
 
 Mapbox.setAccessToken('pk.eyJ1IjoiYnJhZGkyNSIsImEiOiJjbHloZXlncTUwMmptMmxvam16YzZpYWJ2In0.iAua4xmCQM94oKGXoW2LgA');
 
 const App = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [list, setList] = useState([]);
-  const [checkpoints, setCheckpoints] = useState([]); // For checkpoint data
   const [isConnected, setIsConnected] = useState(true);
   const [isTracking, setIsTracking] = useState(false);
   const [userLocation, setUserLocation] = useState([106.8650, -6.1751]); 
 
   useEffect(() => {
     getApi();
-    getCheckpointData(); 
     initDatabase();
     requestLocationPermission();
 
@@ -35,16 +34,6 @@ const App = () => {
       unsubscribe();
     };
   }, []);
-
-  const getCheckpointData = async () => {
-    try {
-      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/cp');
-      const data = await response.json();
-      setCheckpoints(data); 
-    } catch (error) {
-      console.error('Error fetching checkpoint data:', error);
-    }
-  };
 
   const requestLocationPermission = async () => {
     Geolocation.requestAuthorization('always');
@@ -97,6 +86,7 @@ const App = () => {
       onLoop: true,
       taskId: "getLocation",
       onError: (e) => console.log(`Error logging:`, e),
+      
     });
 
     ReactNativeForegroundService.add_task(() => syncDataWithAPI(), {
@@ -116,31 +106,48 @@ const App = () => {
   const getCurrentLocation = () => {
     const currentDate = new Date();
     const dateTime = currentDate.toLocaleString();
-    console.log(dateTime);
-
+    
     Geolocation.getCurrentPosition(
-      position => {
+      async position => {
         if (position.mocked === false) {
           const latitude = position.coords.latitude;
           const longitude = position.coords.longitude;
+          const accuracy = position.coords.accuracy;
+          const numberOfSatellites = await SatelliteModule.getSatelliteCount();
+          const altitude = position.coords.altitude;
+          const speed = position.coords.speed;
           const newData = {
             dateTime,
             latitude,
             longitude,
+            altitude,
+            speed,
+            accuracy,
+            numberOfSatellites,
           };
-
+          
+          console.log(dateTime);
           console.log(newData);
           sendDataToLocalDB(newData);
           setUserLocation([longitude, latitude]); 
         } else {
           const latitude = 0;
           const longitude = 0;
+          const altitude = 0;
+          const speed = 0;
+          const accuracy = 0;
+          const numberOfSatellites = 0;
           const newData = {
             dateTime,
             latitude,
             longitude,
+            altitude,
+            speed,
+            accuracy,
+            numberOfSatellites,
           };
 
+          console.log(dateTime);
           console.log("Fake GPS Detected");
           sendDataToLocalDB(newData);
           setModalVisible(true);
@@ -157,7 +164,7 @@ const App = () => {
     );
   };
 
-  const sendDataToLocalDB = async (newData: { dateTime: string; latitude: number; longitude: number; }) => {
+  const sendDataToLocalDB = async (newData: { dateTime: string; latitude: number; longitude: number; altitude: number; speed: number; accuracy: number; numberOfSatellites: number }) => {
     try {
       await insertLocalDB(newData);
     } catch (error) {
@@ -171,13 +178,17 @@ const App = () => {
 
   const syncDataWithAPI = async () => {
     const isConnected = await checkInternetConnection();
-    if(isConnected) {
+    if(isConnected) { 
       const localDB = await getLocalDB();
       for (const LogTracking of localDB) {
         await sendDataToApi({
           "dateTime": LogTracking.dateTime, 
           "latitude": LogTracking.latitude, 
-          "longitude": LogTracking.longitude
+          "longitude": LogTracking.longitude,
+          "altitude": LogTracking.altitude, 
+          "speed": LogTracking.speed,
+          "accuracy": LogTracking.accuracy, 
+          "numberOfSatellites": LogTracking.numberOfSatellites,
         });
         await deleteLocalDB(LogTracking.id);
       }
@@ -185,7 +196,7 @@ const App = () => {
     } 
   };
 
-  const sendDataToApi = async (newData: { dateTime: any; latitude: any; longitude: any; }) => {
+  const sendDataToApi = async (newData: {dateTime: string; latitude: number; longitude: number; altitude: number; speed: number; accuracy: number; numberOfSatellites: number }) => {
     try {
       const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
         method: 'GET',
@@ -274,10 +285,10 @@ const App = () => {
       <Button title={isTracking ? "Stop Tracking" : "Start Tracking"} onPress={toggleTracking} />
       <Mapbox.MapView
         style={styles.map}
-        styleURL='mapbox://styles/mapbox/streets-v12'
+        styleURL='mapbox://styles/mapbox/satellite-v9'
       >
         <Mapbox.Camera
-          zoomLevel={20}
+          zoomLevel={18}
           centerCoordinate={userLocation}
           pitch={60}
           animationMode={'flyTo'}
@@ -288,49 +299,39 @@ const App = () => {
           id="userLocation"
           title="You are here"
         >
-          <View/>
+          <View style={styles.marker} />
         </Mapbox.PointAnnotation>
-        {list.length > 0 && (
-          <Mapbox.ShapeSource id="polyline" shape={createGeoJSON(getCoordinates(list))}>
-            <Mapbox.LineLayer id="line" style={{ lineColor: '#FF0000', lineWidth: 3 }} />
+        {list && list.length > 1 && (
+          <Mapbox.ShapeSource id="lineSource" shape={createGeoJSON(getCoordinates(list))}>
+            <Mapbox.LineLayer id="routeLine" style={styles.routeLine} />
           </Mapbox.ShapeSource>
         )}
-        {checkpoints.map((checkpoint, index) => (
-          <Mapbox.PointAnnotation
-            key={`checkpoint-${index}`}
-            coordinate={[checkpoint.longitude, checkpoint.latitude]}
-            id={`checkpoint-${index}`}
-            title={`Checkpoint ${index + 1}`}
-            //change this checkpoint marker style into a green color
-          >
-            <View style={styles.checkpointMarker}/>
-          </Mapbox.PointAnnotation>
-        ))}
       </Mapbox.MapView>
     </View>
   );
 };
 
-export default App;
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   map: {
     flex: 1,
   },
-  checkpointIcon: {
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    justifyContent: 'center', 
   },
-  checkpointMarker: {
+  routeLine: {
+    lineColor: 'red',
+    lineWidth: 3,
+  },
+  marker: {
     width: 20,
     height: 20,
-    backgroundColor: 'green', 
-    borderRadius: 10, 
+    borderRadius: 10,
+    backgroundColor: 'blue',
+    borderColor: 'white',
     borderWidth: 2,
-  }
+  },
 });
+
+export default App;

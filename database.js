@@ -23,36 +23,42 @@ export const initDatabase = async () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         dateTime TEXT, 
         latitude REAL, 
-        longitude REAL
+        longitude REAL, 
+        altitude REAL, 
+        speed INTEGER, 
+        accuracy INTEGER, 
+        numberOfSatellites INTEGER
       );`
     );
+    console.log('Database initialized');
   } catch (error) {
-    console.log('Error initializing database', error);
+    console.error('Error initializing database', error);
   }
 };
 
 export const insertLocalDB = async (newData) => {
-  const { dateTime, latitude, longitude } = newData;
+  const { dateTime, latitude, longitude, altitude, speed, accuracy, numberOfSatellites } = newData;
   try {
     await db.executeSql(
-      `INSERT INTO LogTracking (dateTime, latitude, longitude) VALUES (?, ?, ?);`,
-      [dateTime, latitude, longitude]
+      `INSERT INTO LogTracking (dateTime, latitude, longitude, altitude, speed, accuracy, numberOfSatellites) VALUES (?, ?, ?, ?, ?, ?, ?);`,
+      [dateTime, latitude, longitude, altitude, speed, accuracy, numberOfSatellites]
     );
+    console.log('Data inserted successfully');
   } catch (error) {
-    console.log('Error inserting location', error);
+    console.error('Error inserting data into database', error);
   }
 };
 
 export const getLocalDB = async () => {
   try {
-    let results = await db.executeSql(`SELECT * FROM LogTracking;`);
+    const [results] = await db.executeSql(`SELECT * FROM LogTracking;`);
     let data = [];
-    results[0].rows.raw().forEach((row) => {
-      data.push(row);
-    });
+    for (let i = 0; i < results.rows.length; i++) {
+      data.push(results.rows.item(i));
+    }
     return data;
   } catch (error) {
-    console.log('Error fetching data', error);
+    console.error('Error fetching data from database', error);
     return [];
   }
 };
@@ -60,7 +66,8 @@ export const getLocalDB = async () => {
 export const deleteLocalDB = async (id) => {
   try {
     await db.executeSql(`DELETE FROM LogTracking WHERE id = ?;`, [id]);
+    console.log(`Record with id ${id} deleted successfully`);
   } catch (error) {
-    console.log('Error deleting data', error);
+    console.error('Error deleting data from database', error);
   }
 };
