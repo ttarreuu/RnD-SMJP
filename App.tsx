@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal, FlatList } from 'react-native';
+import { StyleSheet, Text, View, PermissionsAndroid, Button, Modal, FlatList, TextInput, Alert, SafeAreaView } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import Geolocation, { PositionError } from 'react-native-geolocation-service';
 import ReactNativeForegroundService from "@supersami/rn-foreground-service";
@@ -8,9 +8,11 @@ import {
   insertLocalDB,
   getLocalDB,
   deleteLocalDB,
+  // getLocalApiURL,
+  // insertLocalApiURL,
 } from './database';
 import Mapbox from '@rnmapbox/maps';
-import SatelliteModule from './SatelliteModule'; // Import the module
+// import SatelliteModule from './SatelliteModule'; 
 
 Mapbox.setAccessToken('pk.eyJ1IjoiYnJhZGkyNSIsImEiOiJjbHloZXlncTUwMmptMmxvam16YzZpYWJ2In0.iAua4xmCQM94oKGXoW2LgA');
 
@@ -18,13 +20,14 @@ const App = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [list, setList] = useState([]);
   const [isConnected, setIsConnected] = useState(true);
-  const [isTracking, setIsTracking] = useState(false);
-  const [userLocation, setUserLocation] = useState([106.8650, -6.1751]); 
+  // const [isTracking, setIsTracking] = useState(false);
+  const [userLocation, setUserLocation] = useState([106.8231756, -6.1913702]); 
 
   useEffect(() => {
     getApi();
     initDatabase();
     requestLocationPermission();
+    startForegroundService();
 
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsConnected(state.isConnected);
@@ -82,8 +85,7 @@ const App = () => {
     });
 
     ReactNativeForegroundService.add_task(() => getCurrentLocation(), {
-      delay: 10000, // tiap 10 detik
-      onLoop: true,
+      onLoop: false,
       taskId: "getLocation",
       onError: (e) => console.log(`Error logging:`, e),
       
@@ -97,25 +99,25 @@ const App = () => {
     });
   };
 
-  const stopForegroundService = () => {
-    ReactNativeForegroundService.stop();
-    ReactNativeForegroundService.remove_task("getLocation");
-    ReactNativeForegroundService.remove_task("syncWithAPI");
-  };
+  // const stopForegroundService = () => {
+  //   ReactNativeForegroundService.stop();
+  //   ReactNativeForegroundService.remove_task("getLocation");
+  //   ReactNativeForegroundService.remove_task("syncWithAPI");
+  // };
 
   const getCurrentLocation = () => {
-    const currentDate = new Date();
-    const dateTime = currentDate.toLocaleString();
-    
-    Geolocation.getCurrentPosition(
-      async position => {
+    // const numberOfSatellites = SatelliteModule.getSatelliteCount();
+    Geolocation.watchPosition(
+      position => {
         if (position.mocked === false) {
+          const currentDate = new Date();
+          const dateTime = currentDate.toLocaleString();
+          console.log(dateTime);
           const latitude = position.coords.latitude;
           const longitude = position.coords.longitude;
-          const accuracy = position.coords.accuracy;
-          const numberOfSatellites = await SatelliteModule.getSatelliteCount();
           const altitude = position.coords.altitude;
           const speed = position.coords.speed;
+          const accuracy = position.coords.accuracy;
           const newData = {
             dateTime,
             latitude,
@@ -123,20 +125,22 @@ const App = () => {
             altitude,
             speed,
             accuracy,
-            numberOfSatellites,
+            // numberOfSatellites,
           };
           
-          console.log(dateTime);
           console.log(newData);
           sendDataToLocalDB(newData);
           setUserLocation([longitude, latitude]); 
         } else {
+          const currentDate = new Date();
+          const dateTime = currentDate.toLocaleString();
+          console.log(dateTime);
           const latitude = 0;
           const longitude = 0;
           const altitude = 0;
           const speed = 0;
           const accuracy = 0;
-          const numberOfSatellites = 0;
+          // const numberOfSatellites = 0;
           const newData = {
             dateTime,
             latitude,
@@ -144,13 +148,13 @@ const App = () => {
             altitude,
             speed,
             accuracy,
-            numberOfSatellites,
+            // numberOfSatellites,
           };
 
           console.log(dateTime);
           console.log("Fake GPS Detected");
           sendDataToLocalDB(newData);
-          setModalVisible(true);
+          // setModalVisible(true);
         }
       },
       error => {
@@ -158,13 +162,15 @@ const App = () => {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 10000
+        distanceFilter: 0,
+        interval: 10000,
+        fastestInterval: 10000,
+        forceRequestLocation: true,
       }
     );
   };
 
-  const sendDataToLocalDB = async (newData: { dateTime: string; latitude: number; longitude: number; altitude: number; speed: number; accuracy: number; numberOfSatellites: number }) => {
+  const sendDataToLocalDB = async (newData: { dateTime: string; latitude: number; longitude: number; altitude: number; speed: number; accuracy: number}) => {
     try {
       await insertLocalDB(newData);
     } catch (error) {
@@ -188,7 +194,7 @@ const App = () => {
           "altitude": LogTracking.altitude, 
           "speed": LogTracking.speed,
           "accuracy": LogTracking.accuracy, 
-          "numberOfSatellites": LogTracking.numberOfSatellites,
+          // "numberOfSatellites": LogTracking.numberOfSatellites,
         });
         await deleteLocalDB(LogTracking.id);
       }
@@ -196,7 +202,7 @@ const App = () => {
     } 
   };
 
-  const sendDataToApi = async (newData: {dateTime: string; latitude: number; longitude: number; altitude: number; speed: number; accuracy: number; numberOfSatellites: number }) => {
+  const sendDataToApi = async (newData: {dateTime: string; latitude: number; longitude: number; altitude: number; speed: number; accuracy: number}) => {
     try {
       const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
         method: 'GET',
@@ -254,14 +260,14 @@ const App = () => {
     }
   };
 
-  const toggleTracking = () => {
-    if (isTracking) {
-      stopForegroundService();
-    } else {
-      startForegroundService();
-    }
-    setIsTracking(!isTracking);
-  };
+  // const toggleTracking = () => {
+  //   if (isTracking) {
+  //     stopForegroundService();
+  //   } else {
+  //     startForegroundService();
+  //   }
+  //   setIsTracking(!isTracking);
+  // };
 
   const createGeoJSON = (coordinates: any) => ({
     type: 'FeatureCollection',
@@ -282,8 +288,8 @@ const App = () => {
 
   return (
     <View style={styles.container}>
-      <Button title={isTracking ? "Stop Tracking" : "Start Tracking"} onPress={toggleTracking} />
-      <Mapbox.MapView
+      {/* <Button title={isTracking ? "Stop Tracking" : "Start Tracking"} onPress={toggleTracking} />*/}
+      <Mapbox.MapView 
         style={styles.map}
         styleURL='mapbox://styles/mapbox/satellite-v9'
       >
@@ -315,6 +321,9 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  separator: {
+    paddingTop: 20
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -331,6 +340,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'blue',
     borderColor: 'white',
     borderWidth: 2,
+  },
+  modalContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(0,0,0,0.5)' 
+  },
+  input: { 
+    height: 40, 
+    borderColor: 'gray', 
+    borderWidth: 1, 
+    marginBottom: 10, 
+    width: '80%', 
+    paddingHorizontal: 8 
   },
 });
 
