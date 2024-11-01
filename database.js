@@ -3,7 +3,7 @@ import SQLite from 'react-native-sqlite-storage';
 SQLite.DEBUG(true);
 SQLite.enablePromise(true);
 
-const database_name = 'LocationData.db';
+const database_name = 'Location.db';
 const database_version = '1.0';
 const database_displayname = 'Location Data';
 const database_size = 200000;
@@ -18,47 +18,56 @@ export const initDatabase = async () => {
       database_displayname,
       database_size
     );
+    
+    // Create LogTracking table if it doesn't exist
     await db.executeSql(
       `CREATE TABLE IF NOT EXISTS LogTracking (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         dateTime TEXT, 
         latitude REAL, 
-        longitude REAL, 
-        altitude REAL, 
-        speed INTEGER, 
-        accuracy INTEGER, 
-        numberOfSatellites INTEGER
+        longitude REAL,
+        altitude REAL,
+        speed REAL,
+        accuracy REAL
       );`
     );
-    console.log('Database initialized');
+
+    // Create ApiURL table if it doesn't exist
+    await db.executeSql(
+      `CREATE TABLE IF NOT EXISTS ApiURL (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        url TEXT
+      );`
+    );
+
+    console.log("Database initialized successfully");
   } catch (error) {
-    console.error('Error initializing database', error);
+    console.log("Error initializing database:", error);
   }
 };
 
 export const insertLocalDB = async (newData) => {
-  const { dateTime, latitude, longitude, altitude, speed, accuracy, numberOfSatellites } = newData;
+  const { dateTime, latitude, longitude, altitude, speed, accuracy } = newData;
   try {
     await db.executeSql(
-      `INSERT INTO LogTracking (dateTime, latitude, longitude, altitude, speed, accuracy, numberOfSatellites) VALUES (?, ?, ?, ?, ?, ?, ?);`,
-      [dateTime, latitude, longitude, altitude, speed, accuracy, numberOfSatellites]
+      `INSERT INTO LogTracking (dateTime, latitude, longitude, altitude, speed, accuracy) VALUES (?, ?, ?, ?, ?, ?);`,
+      [dateTime, latitude, longitude, altitude, speed, accuracy ]
     );
-    console.log('Data inserted successfully');
   } catch (error) {
-    console.error('Error inserting data into database', error);
+    console.log('Error inserting location', error);
   }
 };
 
 export const getLocalDB = async () => {
   try {
-    const [results] = await db.executeSql(`SELECT * FROM LogTracking;`);
+    let results = await db.executeSql(`SELECT * FROM LogTracking;`);
     let data = [];
-    for (let i = 0; i < results.rows.length; i++) {
-      data.push(results.rows.item(i));
-    }
+    results[0].rows.raw().forEach((row) => {
+      data.push(row);
+    });
     return data;
   } catch (error) {
-    console.error('Error fetching data from database', error);
+    console.log('Error fetching data', error);
     return [];
   }
 };
@@ -66,8 +75,32 @@ export const getLocalDB = async () => {
 export const deleteLocalDB = async (id) => {
   try {
     await db.executeSql(`DELETE FROM LogTracking WHERE id = ?;`, [id]);
-    console.log(`Record with id ${id} deleted successfully`);
   } catch (error) {
-    console.error('Error deleting data from database', error);
+    console.log('Error deleting data', error);
+  }
+};
+
+export const insertLocalApiURL = async (url) => {
+  try {
+    await db.executeSql(`DELETE FROM ApiURL;`); 
+    await db.executeSql(`INSERT INTO ApiURL (url) VALUES (?);`, [url]);
+    console.log("API URL saved to database:", url);
+  } catch (error) {
+    console.log("Error inserting API URL:", error);
+  }
+};
+
+export const getLocalApiURL = async () => {
+  try {
+    const [result] = await db.executeSql(`SELECT url FROM ApiURL LIMIT 1;`);
+    if (result.rows.length > 0) {
+      const { url } = result.rows.item(0);
+      console.log("Retrieved API URL from database:", url);
+      return url;
+    }
+    return null; 
+  } catch (error) {
+    console.log("Error retrieving API URL:", error);
+    return null;
   }
 };
