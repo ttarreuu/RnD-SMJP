@@ -26,8 +26,8 @@ const App = () => {
   useEffect(() => {
     getApi();
     initDatabase();
-    requestLocationPermission();
-    startForegroundService();
+    requestLocationPermission();    
+    // startForegroundService();
 
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsConnected(state.isConnected);
@@ -54,6 +54,7 @@ const App = () => {
 
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
         console.log('Location permission granted');
+        startForegroundService();
       } else {
         console.log('Location permission denied');
       }
@@ -84,7 +85,7 @@ const App = () => {
       color: '#000000',
     });
 
-    ReactNativeForegroundService.add_task(() => getCurrentLocation(), {
+    ReactNativeForegroundService.add_task(() => getCurrentLocation(),  {
       onLoop: false,
       taskId: "getLocation",
       onError: (e) => console.log(`Error logging:`, e),
