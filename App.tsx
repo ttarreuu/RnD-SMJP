@@ -8,8 +8,8 @@ import {
   insertLocalDB,
   getLocalDB,
   deleteLocalDB,
-  // getLocalApiURL,
-  // insertLocalApiURL,
+  getLocalApiURL,
+  insertLocalApiURL,
 } from './database';
 import Mapbox from '@rnmapbox/maps';
 // import SatelliteModule from './SatelliteModule'; 
@@ -17,11 +17,11 @@ import Mapbox from '@rnmapbox/maps';
 Mapbox.setAccessToken('pk.eyJ1IjoiYnJhZGkyNSIsImEiOiJjbHloZXlncTUwMmptMmxvam16YzZpYWJ2In0.iAua4xmCQM94oKGXoW2LgA');
 
 const App = () => {
-  const [modalVisible, setModalVisible] = useState(false);
+  // const [modalVisible, setModalVisible] = useState(false);
   const [list, setList] = useState([]);
   const [isConnected, setIsConnected] = useState(true);
   // const [isTracking, setIsTracking] = useState(false);
-  const [userLocation, setUserLocation] = useState([106.8231756, -6.1913702]); 
+  const [userLocation, setUserLocation] = useState([106.8231756, -6.1913702]);
 
   useEffect(() => {
     getApi();
@@ -203,8 +203,9 @@ const App = () => {
   };
 
   const sendDataToApi = async (newData: {dateTime: string; latitude: number; longitude: number; altitude: number; speed: number; accuracy: number}) => {
+    let apiURL = await getLocalApiURL();
     try {
-      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
+      const response = await fetch(apiURL + "/1", {
         method: 'GET',
       });
       
@@ -216,7 +217,7 @@ const App = () => {
           logTracking: [newData],
         };
         
-        await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking', {
+        await fetch(apiURL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -235,7 +236,7 @@ const App = () => {
       
       existingData.logTracking.unshift(newData);
       
-      await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
+      await fetch(apiURL + "/1", {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -248,8 +249,10 @@ const App = () => {
   };
 
   const getApi = async () => {
+    let apiURL = await getLocalApiURL();
+    console.log(apiURL);
     try {
-      const response = await fetch('https://6662b64562966e20ef09a745.mockapi.io/location/v2/logTracking/1', {
+      const response = await fetch(apiURL + "/1", {
         method: 'GET',
       });
       const json = await response.json();
@@ -289,6 +292,13 @@ const App = () => {
   return (
     <View style={styles.container}>
       {/* <Button title={isTracking ? "Stop Tracking" : "Start Tracking"} onPress={toggleTracking} />*/}
+      <SafeAreaView>
+        <TextInput
+          style = {styles.input}
+          placeholder="http://example.com"
+          onChangeText={(val) => insertLocalApiURL(val)}
+        />
+      </SafeAreaView>
       <Mapbox.MapView 
         style={styles.map}
         styleURL='mapbox://styles/mapbox/satellite-v9'
@@ -348,12 +358,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)' 
   },
   input: { 
-    height: 40, 
+    height: 50, 
     borderColor: 'gray', 
     borderWidth: 1, 
-    marginBottom: 10, 
-    width: '80%', 
-    paddingHorizontal: 8 
+    width: '100%', 
+    paddingHorizontal: 4 ,
+    justifyContent: 'center'
   },
 });
 
