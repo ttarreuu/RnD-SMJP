@@ -13,6 +13,7 @@ import {
 } from './database';
 import Mapbox from '@rnmapbox/maps';
 // import SatelliteModule from './SatelliteModule'; 
+import RNFS from 'react-native-fs';
 
 Mapbox.setAccessToken('pk.eyJ1IjoiYnJhZGkyNSIsImEiOiJjbHloZXlncTUwMmptMmxvam16YzZpYWJ2In0.iAua4xmCQM94oKGXoW2LgA');
 
@@ -22,12 +23,27 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(true);
   // const [isTracking, setIsTracking] = useState(false);
   const [userLocation, setUserLocation] = useState([106.8231756, -6.1913702]);
+const [varTemp, setVarTemp] = useState({
+  logTracking: [] as {
+    dateTime: any;
+    latitude: any;
+    longitude: any;
+    altitude: any;
+    speed: any;
+    accuracy: any;
+  }[],
+});
+  const folderPath = RNFS.DownloadDirectoryPath + '/logTracking';
+  const filePath = folderPath + '/data.json'
 
   useEffect(() => {
     getApi();
     initDatabase();
+    initializeFolderStorage();
+    initializeFileStorage();
     requestLocationPermission();    
     // startForegroundService();
+    
 
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsConnected(state.isConnected);
@@ -37,6 +53,31 @@ const App = () => {
       unsubscribe();
     };
   }, []);
+
+  const initializeFolderStorage = async () => {
+    try {
+      const folderExists = await RNFS.exists(folderPath);
+      if (!folderExists) {
+        await RNFS.mkdir(folderPath);
+        console.log('Folder created: ', folderPath);
+      }
+    } catch (error) {
+      console.error("error initializing folder:", error);
+    }
+  };
+
+  const initializeFileStorage = async () => {
+    try {
+      const fileExists = await RNFS.exists(filePath);
+      if (!fileExists) {
+        const initialData = JSON.stringify({ logTracking: [] });
+        await RNFS.writeFile(filePath, initialData, 'utf8');
+        console.log('File created: ', filePath);
+      }
+    } catch (error) {
+      console.error('Error initializing file:', error);
+    }
+  };
 
   const requestLocationPermission = async () => {
     Geolocation.requestAuthorization('always');
@@ -84,7 +125,7 @@ const App = () => {
       button2: false,
       color: '#000000',
     });
-
+ 
     ReactNativeForegroundService.add_task(() => getCurrentLocation(),  {
       onLoop: false,
       taskId: "getLocation",
@@ -130,7 +171,10 @@ const App = () => {
           };
           
           console.log(newData);
-          sendDataToLocalDB(newData);
+
+          if (accuracy <= 15) {
+            sendDataToLocalDB(newData);
+          }
           setUserLocation([longitude, latitude]); 
         } else {
           const currentDate = new Date();
@@ -183,7 +227,49 @@ const App = () => {
     return await NetInfo.fetch().then((state) => state.isConnected);
   };
 
+  const addDataToStorage = async () => {
+    try {
+      const fileExists = await RNFS.exists(filePath);
+      let existingData = { logTracking: [] };
+
+      if (fileExists) {
+        const fileContent = await RNFS.readFile(filePath, 'utf8');
+        existingData = JSON.parse(fileContent);
+      }
+
+      const localDB = await getLocalDB();
+      const newData = localDB.map(item => ({
+        dateTime: item.dateTime,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        altitude: item.altitude,
+        speed: item.speed,
+        accuracy: item.accuracy,
+      }));
+
+      const updatedData = { logTracking: [...existingData.logTracking, ...newData] };
+
+      await RNFS.writeFile(filePath, JSON.stringify(updatedData), 'utf8');
+      setVarTemp(updatedData);
+    } catch (error) {
+      console.error("Error adding data to storage:", error);
+    }
+  };
+
+
+  const readStorage = async () => {
+    try {
+      const fileContent = await RNFS.readFile(filePath, 'utf8');
+      const parsedData = JSON.parse(fileContent);
+      setVarTemp(parsedData);
+    } catch (error) {
+      console.error('Error reading file:', error);
+    }
+  };
+
   const syncDataWithAPI = async () => {
+    readStorage();
+    addDataToStorage();
     const isConnected = await checkInternetConnection();
     if(isConnected) { 
       const localDB = await getLocalDB();
