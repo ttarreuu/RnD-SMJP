@@ -2,7 +2,7 @@
 
 **RnD-SMJP** is a React Native research and development project focused on implementing and testing mobile features including location tracking, offline data storage using SQLite, and interactive maps using Mapbox. This project is used internally for feature prototyping and experimentation.
 
-## 📌 Features
+## Features
 
 - Real-time location tracking using Mapbox
 - Offline data storage with SQLite
@@ -10,7 +10,7 @@
 - Data syncing when network is available
 - Designed for Research & Development (R&D) purposes
 
-## 🛠️ Built With
+## Built With
 
 - [React Native](https://reactnative.dev/) - Mobile development framework
 - [react-native-sqlite-storage](https://github.com/andpor/react-native-sqlite-storage) - Local database
@@ -18,7 +18,7 @@
 - [@react-native-community/netinfo](https://github.com/react-native-netinfo/react-native-netinfo) - Network state monitoring
 - [react-native-get-location](https://github.com/gitim/react-native-get-location) - Geolocation access
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -44,7 +44,7 @@ Before running the app, make sure you have:
    ```bash
    npx react-native run-android
 
-## 🗺️ Mapbox Setup
+## Mapbox Setup
 
 1. Sign up at [Mapbox](https://account.mapbox.com/)
 2. Get your access token from your Mapbox dashboard
@@ -52,8 +52,8 @@ Before running the app, make sure you have:
 
 ---
 
-## 📂 Project Structure
-
+## Project Structure
+```bash
 RnD-SMJP/
 ├── android/ # Android native code
 ├── ios/ # iOS native code
