@@ -7,6 +7,9 @@
 ![Mapbox](https://img.shields.io/badge/-Mapbox-4264FB?style=for-the-badge&logo=mapbox&logoColor=white)
 ![Git](https://img.shields.io/badge/-Git-F05032?style=for-the-badge&logo=git&logoColor=white)
 
+*Screenshot*
+(Update here!)
+
 **RnD-SMJP** is a React Native research and development project focused on implementing and testing mobile features including location tracking, offline data storage using SQLite, and interactive maps using Mapbox. This project is used internally for feature prototyping and experimentation.
 
 ## Features
