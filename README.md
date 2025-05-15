@@ -1,5 +1,12 @@
 # RnD-SMJP
 
+![TypeScript](https://img.shields.io/badge/-TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Java](https://img.shields.io/badge/-Java-007396?style=for-the-badge&logo=java&logoColor=white)
+![React Native](https://img.shields.io/badge/-React%20Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Express.js](https://img.shields.io/badge/-Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
+![Mapbox](https://img.shields.io/badge/-Mapbox-4264FB?style=for-the-badge&logo=mapbox&logoColor=white)
+![Git](https://img.shields.io/badge/-Git-F05032?style=for-the-badge&logo=git&logoColor=white)
+
 **RnD-SMJP** is a React Native research and development project focused on implementing and testing mobile features including location tracking, offline data storage using SQLite, and interactive maps using Mapbox. This project is used internally for feature prototyping and experimentation.
 
 ## Features
@@ -49,19 +56,5 @@ Before running the app, make sure you have:
 1. Sign up at [Mapbox](https://account.mapbox.com/)
 2. Get your access token from your Mapbox dashboard
 3. Follow the official [Mapbox React Native setup guide](https://docs.mapbox.com/react-native/maps/overview/) to configure Android and iOS environments
-
----
-
-## Project Structure
-```bash
-RnD-SMJP/
-├── android/ # Android native code
-├── ios/ # iOS native code
-├── database/ # SQLite database logic
-│ └── database.js
-├── components/ # Custom UI components
-├── App.tsx # Main application entry
-├── package.json # Project metadata and dependencies
-└── ...
 
 
